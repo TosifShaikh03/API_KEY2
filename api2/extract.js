@@ -1,7 +1,7 @@
-import OpenAI from "openai";
+const OpenAI = require("openai");
 
-export default async function handler(req, res) {
-    // --------- CORS ---------
+module.exports = async function (req, res) {
+    // ----------------- CORS -----------------
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -11,36 +11,35 @@ export default async function handler(req, res) {
     }
 
     try {
-        // ----- Vercel FIX: force JSON parse -----
-        let body = req.body;
+        // ----------- READ RAW BODY (Vercel fix) ----------
+        let raw = "";
+        await new Promise(resolve => {
+            req.on("data", chunk => raw += chunk);
+            req.on("end", resolve);
+        });
 
-        if (!body) {
-            const raw = await new Promise(resolve => {
-                let data = "";
-                req.on("data", chunk => { data += chunk });
-                req.on("end", () => resolve(data));
-            });
-            body = JSON.parse(raw);
-        }
-
+        const body = JSON.parse(raw || "{}");
         const ocrText = body.ocrText;
-        console.log("OCR Received:", ocrText);
 
-        // ----- AI -----
-        const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        console.log("OCR RECEIVED:", ocrText);
 
-        const ai = await client.chat.completions.create({
+        // -------------- GPT-4o mini -----------------
+        const client = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY
+        });
+
+        const completion = await client.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 {
                     role: "user",
                     content: `
-Extract only:
+Extract:
 - Name
 - Expiry (month/year)
 - Category
 
-OCR TEXT:
+OCR:
 ${ocrText}
 
 Return JSON only.
@@ -49,11 +48,12 @@ Return JSON only.
             ]
         });
 
-        const output = ai.choices[0].message.content;
-        return res.status(200).json(JSON.parse(output));
+        const output = completion.choices[0].message.content;
+
+        res.status(200).json(JSON.parse(output));
 
     } catch (err) {
         console.error("SERVER ERROR:", err);
-        return res.status(500).json({ error: "AI failed" });
+        res.status(500).json({ error: "AI processing failed" });
     }
-}
+};
