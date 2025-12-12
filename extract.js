@@ -1,20 +1,21 @@
 import OpenAI from "openai";
 
 export default async function handler(req, res) {
-    // --------- IMPORTANT: ADD CORS HEADERS ----------
+    // --------- CORS HEADERS ----------
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
     if (req.method === "OPTIONS") {
-        return res.status(200).end(); // CORS preflight response
+        return res.status(200).end();
     }
 
-    // -------------------------------------------------
-    // Your GPT logic
-    // -------------------------------------------------
     try {
-        const { ocrText } = req.body;
+        // ----- FIX: FORCE JSON PARSE -----
+        const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+        const ocrText = body.ocrText;
+
+        console.log("OCR RECEIVED:", ocrText);
 
         const client = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY
@@ -41,11 +42,10 @@ Return JSON only.
         });
 
         const output = ai.choices[0].message.content;
-
-        res.status(200).json(JSON.parse(output));
+        return res.status(200).json(JSON.parse(output));
 
     } catch (error) {
-        console.log("ERROR:", error);
-        res.status(500).json({ error: "AI processing failed" });
+        console.error("SERVER ERROR:", error);
+        return res.status(500).json({ error: "AI processing failed" });
     }
 }
