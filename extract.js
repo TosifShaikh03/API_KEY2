@@ -20,13 +20,14 @@ app.post("/", async (req, res) => {
                 {
                     role: "user",
                     content: `
-OCR Text:
+Extract only these fields from the OCR text:
+Name:
+Expiry (month/year):
+Category:
+
+OCR TEXT:
 ${ocrText}
 
-Extract only:
-- Name
-- Expiry (month/year)
-- Category
 Return JSON only.
 `
                 }
@@ -37,7 +38,7 @@ Return JSON only.
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "AI Failed" });
+        res.status(500).json({ error: "GPT failed" });
     }
 });
 
